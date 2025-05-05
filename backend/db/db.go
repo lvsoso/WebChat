@@ -77,6 +77,7 @@ type Message struct {
 	Role           string // 'user' 或 'assistant'
 	Content        string
 	ModelName      string // 使用的AI模型
+	TokenCount     int    // 使用的token数量
 	ConversationID uint
 	Conversation   Conversation
 }

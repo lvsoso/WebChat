@@ -128,6 +128,9 @@ type SendMessageRequest struct {
 	Message string `json:"message" binding:"required"`
 }
 
+// 限制发送给模型的消息数量
+const MAX_CONTEXT_MESSAGES = 10
+
 func SendMessage(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -154,12 +157,32 @@ func SendMessage(c *gin.Context) {
 		Role:           "user",
 		Content:        req.Message,
 		ModelName:      req.Model,
+		TokenCount:     0, // 用户消息的token计数初始为0
 		ConversationID: conversation.ID,
 	}
 	db.DB.Create(&userMessage)
 
+	// 获取当前会话的历史消息
+	var messages []db.Message
+	db.DB.Where("conversation_id = ?", conversation.ID).Order("created_at ASC").Find(&messages)
+
+	// 转换为AI服务需要的格式
+	var chatMessages []services.ChatMessage
+	for _, msg := range messages {
+		chatMessages = append(chatMessages, services.ChatMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+		})
+	}
+
+	// 限制上下文窗口大小
+	if len(chatMessages) > MAX_CONTEXT_MESSAGES {
+		// 只保留最近的N条消息
+		chatMessages = chatMessages[len(chatMessages)-MAX_CONTEXT_MESSAGES:]
+	}
+
 	// 调用AI服务获取响应
-	response, err := services.GetAIResponse(req.Model, req.Message)
+	response, err := services.GetAIResponse(req.Model, chatMessages)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取AI响应失败"})
 		return
@@ -168,14 +191,16 @@ func SendMessage(c *gin.Context) {
 	// 保存AI响应
 	aiMessage := db.Message{
 		Role:           "assistant",
-		Content:        response,
+		Content:        response.Content,
 		ModelName:      req.Model,
+		TokenCount:     response.TokenCount,
 		ConversationID: conversation.ID,
 	}
 	db.DB.Create(&aiMessage)
 
 	c.JSON(http.StatusOK, gin.H{
-		"content": response,
+		"content":     response.Content,
+		"token_count": response.TokenCount,
 	})
 }
 
@@ -204,4 +229,23 @@ func DeleteConversation(c *gin.Context) {
 	db.DB.Delete(&conversation)
 
 	c.JSON(http.StatusOK, gin.H{"message": "会话已删除"})
+}
+
+func GetConversationMessages(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	conversationID := c.Param("id")
+
+	// 验证会话所有权
+	var conversation db.Conversation
+	result := db.DB.Where("id = ? AND user_id = ?", conversationID, userID).First(&conversation)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "会话不存在"})
+		return
+	}
+
+	// 获取会话消息
+	var messages []db.Message
+	db.DB.Where("conversation_id = ?", conversation.ID).Order("created_at ASC").Find(&messages)
+
+	c.JSON(http.StatusOK, messages)
 }
