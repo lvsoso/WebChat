@@ -49,6 +49,8 @@ func main() {
 		protected.POST("/chat/send", api.SendMessage)
 		protected.GET("/chat/conversations", api.GetConversations)
 		protected.DELETE("/chat/conversations/:id", api.DeleteConversation)
+		protected.GET("/chat/conversations/:id", api.GetConversation)
+		protected.GET("/chat/conversations/:id/messages", api.GetConversationMessages)
 	}
 
 	// 启动服务器

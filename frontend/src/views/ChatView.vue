@@ -1,5 +1,15 @@
 <template>
   <div class="flex flex-col h-screen">
+    <!-- 导航栏 -->
+    <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold">Web Chat</h1>
+      <button 
+        @click="router.push('/conversations')"
+        class="px-3 py-1 bg-white text-indigo-600 rounded hover:bg-gray-100"
+      >
+        查看历史对话
+      </button>
+    </div>
     <!-- 聊天历史区域 -->
     <div class="flex-1 overflow-y-auto p-4 space-y-4">
       <div v-for="message in messages" :key="message.id" class="flex">
@@ -53,7 +63,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useChatStore } from '../stores/chat';
+
+const router = useRouter();
 
 interface Message {
   id: string;
@@ -64,7 +77,7 @@ interface Message {
 const chatStore = useChatStore();
 const messages = ref<Message[]>([]);
 const newMessage = ref('');
-const selectedModel = ref('gpt-4');
+const selectedModel = ref('deepseek');
 const isLoading = ref(false);
 
 const sendMessage = async () => {

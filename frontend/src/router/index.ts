@@ -3,6 +3,8 @@ import { useAuthStore } from '../stores/auth';
 import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import ChatView from '../views/ChatView.vue';
+import ConversationsView from '../views/ConversationsView.vue';
+import ConversationDetailView from '../views/ConversationDetailView.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -20,6 +22,18 @@ const routes: Array<RouteRecordRaw> = [
     path: '/register',
     name: 'Register',
     component: RegisterView
+  },
+  {
+    path: '/conversations',
+    name: 'Conversations',
+    component: ConversationsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/conversation/:id',
+    name: 'ConversationDetail',
+    component: ConversationDetailView,
+    meta: { requiresAuth: true }
   }
 ];
 

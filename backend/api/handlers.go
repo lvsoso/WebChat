@@ -124,8 +124,9 @@ func Logout(c *gin.Context) {
 
 // 聊天相关处理函数
 type SendMessageRequest struct {
-	Model   string `json:"model" binding:"required"`
-	Message string `json:"message" binding:"required"`
+	Model          string `json:"model" binding:"required"`
+	Message        string `json:"message" binding:"required"`
+	ConversationID uint   `json:"conversation_id,omitempty"`
 }
 
 // 限制发送给模型的消息数量
@@ -140,16 +141,28 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
-	// 创建或获取当前会话
+	// 获取或创建会话
 	var conversation db.Conversation
-	result := db.DB.Where("user_id = ?", userID).Order("created_at DESC").First(&conversation)
-	if result.Error != nil {
-		// 如果没有会话，创建新会话
-		conversation = db.Conversation{
-			UserID: userID.(uint),
-			Title:  "新对话",
+
+	// 如果提供了会话ID，则使用指定的会话
+	if req.ConversationID > 0 {
+		// 验证会话所有权
+		result := db.DB.Where("id = ? AND user_id = ?", req.ConversationID, userID).First(&conversation)
+		if result.Error != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "会话不存在或无权访问"})
+			return
 		}
-		db.DB.Create(&conversation)
+	} else {
+		// 否则创建或获取最新的会话
+		result := db.DB.Where("user_id = ?", userID).Order("created_at DESC").First(&conversation)
+		if result.Error != nil {
+			// 如果没有会话，创建新会话
+			conversation = db.Conversation{
+				UserID: userID.(uint),
+				Title:  "新对话",
+			}
+			db.DB.Create(&conversation)
+		}
 	}
 
 	// 保存用户消息
@@ -248,4 +261,19 @@ func GetConversationMessages(c *gin.Context) {
 	db.DB.Where("conversation_id = ?", conversation.ID).Order("created_at ASC").Find(&messages)
 
 	c.JSON(http.StatusOK, messages)
+}
+
+func GetConversation(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	conversationID := c.Param("id")
+
+	// 验证会话所有权
+	var conversation db.Conversation
+	result := db.DB.Where("id = ? AND user_id = ?", conversationID, userID).First(&conversation)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "会话不存在"})
+		return
+	}
+
+	c.JSON(http.StatusOK, conversation)
 }

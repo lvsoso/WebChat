@@ -4,10 +4,12 @@ import axios from 'axios';
 interface SendMessagePayload {
   model: string;
   message: string;
+  conversation_id?: number;
 }
 
 interface MessageResponse {
   content: string;
+  token_count: number;
 }
 
 export const useChatStore = defineStore('chat', {
@@ -44,6 +46,26 @@ export const useChatStore = defineStore('chat', {
         );
       } catch (error) {
         console.error('删除对话失败:', error);
+        throw error;
+      }
+    },
+    
+    async getConversationMessages(conversationId: string) {
+      try {
+        const response = await axios.get(`/api/chat/conversations/${conversationId}/messages`);
+        return response.data;
+      } catch (error) {
+        console.error('获取对话消息失败:', error);
+        throw error;
+      }
+    },
+
+    async getConversation(conversationId: string) {
+      try {
+        const response = await axios.get(`/api/chat/conversations/${conversationId}`);
+        return response.data;
+      } catch (error) {
+        console.error('获取对话详情失败:', error);
         throw error;
       }
     },
